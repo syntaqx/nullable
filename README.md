@@ -11,4 +11,37 @@ A way to represent nullable types in Go with JSON serialization.
 go get github.com/syntaqx/nullable
 ```
 
+## Example
 
+```go
+package main
+
+import (
+	"database/sql"
+	"encoding/json"
+	"fmt"
+
+	"github.com/syntaqx/nullable"
+)
+
+type User struct {
+	ID   nullable.Int64
+	Name nullable.String
+}
+
+func main() {
+	u := User{
+		Name: nullable.String{
+			sql.NullString{String: "John Doe", Valid: true},
+		},
+	}
+
+	b, err := json.Marshal(u)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(string(b))
+}
+
+```
