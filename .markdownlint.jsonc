@@ -1,0 +1,6 @@
+{
+  // Go source uses tabs, so allow hard tabs inside fenced code blocks.
+  "MD010": {
+    "code_blocks": false
+  }
+}
