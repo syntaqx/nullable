@@ -96,6 +96,68 @@ type Patch struct {
 A valid zero value (e.g. `nullable.Value("")`) is *not* treated as null, so an
 explicit empty string still serializes as `""` rather than being omitted.
 
+## encoding/json/v2
+
+On Go 1.27+, `Nullable` and `Optional` also implement the `encoding/json/v2`
+`MarshalerTo` and `UnmarshalerFrom` interfaces. They write to and read from the
+v2 encoder and decoder directly, and the caller's options, such as
+`StringifyNumbers`, apply to the wrapped value. `encoding/json` is built on v2
+and uses these methods too, so v1 callers get the same speedup without changing
+any code.
+
+## Absent vs. null: `Optional`
+
+`Nullable` has two states, so a missing field and an explicit `null` decode the
+same way. For PATCH-style input, where "leave it alone" and "clear it" mean
+different things, use `Optional[T]`. It has three states:
+
+| JSON input           | `Optional` state | `IsPresent()` | Held `Nullable` |
+| -------------------- | ---------------- | ------------- | --------------- |
+| field missing        | absent (zero)    | `false`       | null            |
+| `"email": null`      | null             | `true`        | null            |
+| `"email": "a@b.co"`  | value            | `true`        | `"a@b.co"`      |
+
+```go
+type UserPatch struct {
+	Name  nullable.Optional[string] `json:"name,omitzero"`
+	Email nullable.Optional[string] `json:"email,omitzero"`
+}
+
+var p UserPatch
+json.Unmarshal([]byte(`{"email":null}`), &p)
+
+user.Name = p.Name.Or(user.Name)    // not in the request: unchanged
+user.Email = p.Email.Or(user.Email) // explicit null: cleared
+```
+
+Use the `omitzero` tag option on `Optional` fields. Without it, an absent field
+marshals as `null`. `Optional` does not implement the `database/sql` interfaces
+because SQL has no way to store "absent". Use `Or` to resolve it to a
+`Nullable` first.
+
+Build one with `nullable.Present(nullable.Value(v))` or
+`nullable.Present(nullable.Null[T]())`, or change it with `Set`, `SetNull` and
+`Unset`.
+
+## Why not `*T` or `sql.Null[T]`?
+
+The standard library covers each piece separately, but no single type covers
+them all:
+
+|                                | `*T` | `sql.Null[T]` | `Nullable[T]` |
+| ------------------------------ | ---- | ------------- | ------------- |
+| JSON `null`                    | yes  | no\*          | yes           |
+| SQL `NULL`                     | yes  | yes           | yes           |
+| No aliasing or nil dereference | no   | yes           | yes           |
+| `omitzero` drops null          | yes  | no            | yes           |
+| Helpers (`Or`, `Map`, `Equal`) | no   | no            | yes           |
+
+\* `sql.Null[T]` encodes as `{"V":…,"Valid":…}` under both JSON v1 and v2.
+
+If you only need JSON, `*T` with `omitzero` is a fine choice. This package is
+for when you want one type all the way from the database to the API. JSON v2
+doesn't add a nullable type, so this hasn't changed.
+
 ## database/sql
 
 `Nullable[T]` implements `driver.Valuer` and `sql.Scanner`, delegating
