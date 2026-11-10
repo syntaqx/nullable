@@ -12,15 +12,22 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # oldstable is the go.mod minimum; stable also builds the json/v2 files.
+        go-version: [oldstable, stable]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
-          go-version: stable
+          go-version: ${{ matrix.go-version }}
           cache: true
+      - name: Vet
+        run: go vet ./...
       - name: Test
         run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
       - name: Upload coverage reports to Codecov
+        if: matrix.go-version == 'stable'
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

@@ -1,5 +1,5 @@
 // Package nullable provides a single generic type for values that may be
-// absent, with first-class support for JSON and database/sql.
+// null, with first-class support for JSON (v1 and v2) and database/sql.
 //
 // Instead of a separate wrapper per underlying type, use Nullable[T]:
 //
@@ -11,6 +11,12 @@
 //
 // A Nullable is null by its zero value, so a freshly declared field marshals
 // to JSON null and stores as SQL NULL without any setup.
+//
+// # Absent vs. null
+//
+// Nullable has two states, so a missing JSON field and an explicit null decode
+// the same way. For PATCH-style input, use [Optional], which adds a third,
+// absent state and resolves against the current value with [Optional.Or].
 //
 // # Extending to other formats
 //
@@ -43,7 +49,7 @@ import (
 
 // Nullable holds a value of type T that may be null.
 //
-// The zero value is a valid, null Nullable. Use Value to construct a non-null
+// The zero value is a valid, null Nullable. Use [Value] to construct a non-null
 // one. Fields are unexported so the null/non-null invariant can only be changed
 // through the provided methods.
 type Nullable[T any] struct {
@@ -201,7 +207,6 @@ func Equal[T comparable](a, b Nullable[T]) bool {
 }
 
 // Common aliases for convenience. Nullable[T] works with any type; these just
-
 // save keystrokes for the usual suspects.
 type (
 	Bool    = Nullable[bool]

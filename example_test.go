@@ -48,3 +48,22 @@ func ExampleNullable_json() {
 	fmt.Println(string(b))
 	// Output: {"id":1,"name":"Ada"}
 }
+
+func ExampleOptional_patch() {
+	type UserPatch struct {
+		Name  nullable.Optional[string] `json:"name,omitzero"`
+		Email nullable.Optional[string] `json:"email,omitzero"`
+	}
+
+	name := nullable.Value("Ada")
+	email := nullable.Value("ada@example.com")
+
+	// Email is cleared explicitly; Name is not mentioned, so it is left alone.
+	var p UserPatch
+	_ = json.Unmarshal([]byte(`{"email":null}`), &p)
+
+	name = p.Name.Or(name)
+	email = p.Email.Or(email)
+	fmt.Println(name, email)
+	// Output: Ada <null>
+}

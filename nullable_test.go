@@ -141,6 +141,35 @@ func TestUnmarshalJSON(t *testing.T) {
 	})
 }
 
+// TestJSONv1Methods calls MarshalJSON and UnmarshalJSON directly. On Go 1.27+
+// encoding/json prefers the v2 methods, so this keeps the v1 implementations
+// exercised and in line with them.
+func TestJSONv1Methods(t *testing.T) {
+	b, err := Value("x").MarshalJSON()
+	if err != nil || string(b) != `"x"` {
+		t.Fatalf("MarshalJSON(valid) = %s, %v", b, err)
+	}
+	b, err = Null[string]().MarshalJSON()
+	if err != nil || string(b) != `null` {
+		t.Fatalf("MarshalJSON(null) = %s, %v", b, err)
+	}
+
+	s := Value("preset")
+	if err := s.UnmarshalJSON([]byte(`null`)); err != nil || s.Valid() {
+		t.Fatalf("UnmarshalJSON(null) valid=%v err=%v", s.Valid(), err)
+	}
+	if err := s.UnmarshalJSON([]byte(`"y"`)); err != nil {
+		t.Fatal(err)
+	}
+	if v, ok := s.Get(); !ok || v != "y" {
+		t.Fatalf("UnmarshalJSON(value) = %q, %v", v, ok)
+	}
+	var i Int64
+	if err := i.UnmarshalJSON([]byte(`"nope"`)); err == nil || i.Valid() {
+		t.Fatalf("UnmarshalJSON(bad) valid=%v err=%v", i.Valid(), err)
+	}
+}
+
 func TestJSONRoundTripStruct(t *testing.T) {
 	type User struct {
 		ID    Int64  `json:"id"`
